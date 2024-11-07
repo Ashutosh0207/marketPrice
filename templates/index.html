@@ -2,91 +2,49 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fruit Pricing Dashboard</title>
+    <title>Daily Price Optimization Dashboard</title>
     <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-    <div id="dashboard">
-        <h1>Fruit Price Prediction Dashboard</h1>
-        <table>
-            <thead>
-                <tr>
-                    <th>Fruit Name</th>
-                    <th>Predicted Price</th>
-                    <th>Season</th>
-                    <th>Weather</th>
-                    <th>Competitor Price</th>
-                    <th>Inventory Level</th>
-                </tr>
-            </thead>
-            <tbody id="priceTableBody"></tbody>
-        </table>
-        <div id="chartContainer">
-            <canvas id="priceChart" width="400" height="200"></canvas>
+    <h1>Daily Price Optimization Dashboard</h1>
+    <form action="/optimize" method="post" id="inputForm">
+        <h2>Vendor Daily Inputs</h2>
+        <div id="inputs">
+            <label>Product Names (comma-separated):</label>
+            <input type="text" name="product_names" required>
+            <label>Quantities (kg, comma-separated):</label>
+            <input type="text" name="quantities" required>
+            <label>Competitor Prices (optional, comma-separated):</label>
+            <input type="text" name="competitor_prices">
+            <button type="submit">Optimize Prices</button>
         </div>
-    </div>
+    </form>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <h2>Optimized Prices for the Day</h2>
+    <table id="priceTable">
+        <tr>
+            <th>Product Name</th>
+            <th>Optimized Price</th>
+            <th>Inventory (kg)</th>
+        </tr>
+        <!-- Rows populated by JavaScript -->
+    </table>
+
+    <h3>Expected Profit for the Day: $<span id="expectedProfit">0.00</span></h3>
+
     <script>
-        const apiUrl = "http://127.0.0.1:8000/get_latest_prices";
-
-        async function fetchPrices() {
-            try {
-                const response = await fetch(apiUrl);
+        document.getElementById("inputForm").onsubmit = async function(e) {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const response = await fetch("/optimize", { method: "POST", body: formData });
+            if (response.ok) {
                 const data = await response.json();
-                return data.optimal_prices;
-            } catch (error) {
-                console.error("Error fetching prices:", error);
-                return [];
+                document.getElementById("priceTable").innerHTML = data.prices.map(item => `
+                    <tr><td>${item.name}</td><td>${item.price.toFixed(2)}</td><td>${item.inventory}</td></tr>
+                `).join("");
+                document.getElementById("expectedProfit").textContent = data.profit.toFixed(2);
             }
-        }
-
-        function updateTable(prices) {
-            const tableBody = document.getElementById("priceTableBody");
-            tableBody.innerHTML = "";
-            prices.forEach((item) => {
-                const row = document.createElement("tr");
-                row.innerHTML = `
-                    <td>${item.name}</td>
-                    <td>$${item.price.toFixed(2)}</td>
-                    <td>${item.season}</td>
-                    <td>${item.weather}</td>
-                    <td>$${item.competitor_price.toFixed(2)}</td>
-                    <td>${item.inventory.toFixed(2)} kg</td>
-                `;
-                tableBody.appendChild(row);
-            });
-        }
-
-        function updateChart(prices) {
-            const labels = prices.map(item => item.name);
-            const data = {
-                labels: labels,
-                datasets: [{
-                    label: 'Predicted Prices',
-                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                    borderColor: 'rgba(75, 192, 192, 1)',
-                    borderWidth: 1,
-                    data: prices.map(item => item.price),
-                }]
-            };
-            if (window.priceChart) window.priceChart.destroy();
-            window.priceChart = new Chart(document.getElementById('priceChart'), {
-                type: 'bar',
-                data: data,
-                options: { responsive: true, scales: { y: { beginAtZero: true }}}
-            });
-        }
-
-        async function refreshDashboard() {
-            const prices = await fetchPrices();
-            updateTable(prices);
-            updateChart(prices);
-        }
-
-        refreshDashboard();
-        setInterval(refreshDashboard, 10000);  // Refresh every 10 seconds
+        };
     </script>
 </body>
 </html>
