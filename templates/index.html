@@ -7,20 +7,27 @@
 </head>
 <body>
     <h1>Daily Price Optimization Dashboard</h1>
+
+    <!-- Single Input Fields for Product Details -->
+    <h2>Enter Product Details</h2>
     <form action="/optimize" method="post" id="inputForm">
-        <h2>Vendor Daily Inputs</h2>
-        <div id="inputs">
-            <label>Product Names (comma-separated):</label>
-            <input type="text" name="product_names" required>
-            <label>Quantities (kg, comma-separated):</label>
-            <input type="text" name="quantities" required>
-            <label>Competitor Prices (optional, comma-separated):</label>
-            <input type="text" name="competitor_prices">
-            <button type="submit">Optimize Prices</button>
+        <div>
+            <label>Product Name:</label>
+            <input type="text" name="product_name" placeholder="Product Name" required>
         </div>
+        <div>
+            <label>Quantity (kg):</label>
+            <input type="number" name="quantity" placeholder="Quantity (kg)" required>
+        </div>
+        <div>
+            <label>Competitor Price (optional):</label>
+            <input type="number" name="competitor_price" placeholder="Competitor Price (optional)">
+        </div>
+        <button type="submit">Optimize Price</button>
     </form>
 
-    <h2>Optimized Prices for the Day</h2>
+    <!-- Optimized Prices Table and Profit Display -->
+    <h2>Optimized Price for the Day</h2>
     <table id="priceTable">
         <tr>
             <th>Product Name</th>
@@ -29,20 +36,40 @@
         </tr>
         <!-- Rows populated by JavaScript -->
     </table>
-
     <h3>Expected Profit for the Day: $<span id="expectedProfit">0.00</span></h3>
 
     <script>
         document.getElementById("inputForm").onsubmit = async function(e) {
             e.preventDefault();
+
+            // Log form data to the console
             const formData = new FormData(e.target);
-            const response = await fetch("/optimize", { method: "POST", body: formData });
-            if (response.ok) {
-                const data = await response.json();
-                document.getElementById("priceTable").innerHTML = data.prices.map(item => `
-                    <tr><td>${item.name}</td><td>${item.price.toFixed(2)}</td><td>${item.inventory}</td></tr>
-                `).join("");
-                document.getElementById("expectedProfit").textContent = data.profit.toFixed(2);
+            console.log("Product Name:", formData.get("product_name"));
+            console.log("Quantity:", formData.get("quantity"));
+            console.log("Competitor Price:", formData.get("competitor_price"));
+
+            try {
+                // Send form data to the server
+                const response = await fetch("/optimize", { method: "POST", body: formData });
+                
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Populate the optimized price and inventory data in the table
+                    document.getElementById("priceTable").innerHTML = data.prices.map(item => `
+                        <tr><td>${item.name}</td><td>${item.price.toFixed(2)}</td><td>${item.inventory}</td></tr>
+                    `).join("");
+                    
+                    // Display the expected profit
+                    document.getElementById("expectedProfit").textContent = `$${data.profit.toFixed(2)}`;
+                } else {
+                    const errorText = await response.text();
+                    console.error("Failed to optimize price:", errorText);
+                    alert("Server error: " + errorText);
+                }
+            } catch (error) {
+                console.error("Fetch error:", error);
+                alert("Failed to reach the server. Please check your connection and try again.");
             }
         };
     </script>

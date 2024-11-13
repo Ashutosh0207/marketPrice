@@ -1,12 +1,11 @@
 # main.py
 
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from typing import List, Dict, Optional
+from typing import Optional
 import pandas as pd
-import numpy as np
 from models.optimization import optimize_daily_prices
 
 app = FastAPI()
@@ -31,18 +30,31 @@ async def dashboard(request: Request):
 
 @app.post("/optimize")
 async def optimize_prices(
-    product_names: List[str] = Form(...),
-    quantities: List[float] = Form(...),
-    competitor_prices: List[float] = Form(None)
+    product_name: str = Form(...),
+    quantity: float = Form(...),
+    competitor_price: Optional[float] = Form(None)
 ):
-    """Optimizes prices based on input from the vendor and updates the global data for display."""
+    """Optimizes prices based on form input for a single product and updates global data."""
     global daily_optimized_prices, expected_profit
-    # Collect input data
-    inputs = {
-        "product_names": product_names,
-        "quantities": quantities,
-        "competitor_prices": competitor_prices if competitor_prices else [None] * len(product_names)
-    }
-    # Call optimization function to calculate optimal prices and expected profit
-    daily_optimized_prices, expected_profit = optimize_daily_prices(data, inputs)
-    return {"status": "success"}
+
+    try:
+        print("Received product name:", product_name)
+        print("Received quantity:", quantity)
+        print("Received competitor price:", competitor_price)
+
+        # Prepare input in a dictionary format to match the expected input structure
+        inputs = {
+            "product_names": [product_name],
+            "quantities": [quantity],
+            "competitor_prices": [competitor_price]
+        }
+
+        # Call the optimization function
+        daily_optimized_prices, expected_profit = optimize_daily_prices(data, inputs)
+        
+        # Return the optimized price and expected profit to the frontend
+        return {"prices": daily_optimized_prices, "profit": expected_profit}
+    
+    except Exception as e:
+        print("Error during optimization:", str(e))  # Log the error to the console
+        raise HTTPException(status_code=500, detail="Optimization failed due to server error.")
